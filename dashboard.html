@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>진료비 청구 현황</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #1a1d23;
+    --muted: #5f6672;
+    --border: #e3e6eb;
+    --accent: #2f6fde;
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --axis-text: #898781;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --card: #1e2127;
+      --text: #eceef2;
+      --muted: #9aa1ad;
+      --border: #2e333b;
+      --accent: #6c9cf0;
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --axis-text: #898781;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 960px; margin: 0 auto; padding: 40px 16px; }
+  header { margin-bottom: 28px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 0.9rem; margin: 0; }
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+  }
+  .kpi {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .kpi .label { color: var(--muted); font-size: 0.9rem; margin: 0 0 8px; }
+  .kpi .value {
+    font-size: clamp(1.5rem, 3.2vw, 2rem);
+    white-space: nowrap;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    margin: 0;
+    letter-spacing: -0.02em;
+  }
+  .kpi .value .unit { font-size: 1rem; font-weight: 500; color: var(--muted); margin-left: 2px; }
+  .kpi .note { color: var(--muted); font-size: 0.8rem; margin: 8px 0 0; }
+  .panel {
+    margin-top: 24px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .panel h2 { font-size: 1.05rem; margin: 0 0 2px; }
+  .panel .sub { margin-bottom: 16px; }
+  .bars { list-style: none; margin: 0; padding: 0; }
+  .bar-row {
+    display: grid;
+    grid-template-columns: minmax(0, 15rem) 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 5px 0;
+    border-radius: 6px;
+  }
+  .bar-row:hover { background: var(--bg); }
+  .bar-label { font-size: 0.875rem; min-width: 0; }
+  .bar-label .name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-label .code { color: var(--muted); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+  .bar-track { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .bar {
+    height: 18px;
+    background: var(--accent);
+    border-radius: 0 4px 4px 0;
+    flex: none;
+  }
+  .bar-value { font-size: 0.85rem; font-variant-numeric: tabular-nums; color: var(--text); white-space: nowrap; }
+  @media (max-width: 520px) {
+    .bar-row { grid-template-columns: 1fr; gap: 4px; }
+  }
+  .legend { display: flex; gap: 16px; margin: 0 0 8px; padding: 0; list-style: none; font-size: 0.85rem; color: var(--muted); }
+  .legend li { display: flex; align-items: center; gap: 6px; }
+  .legend .swatch { width: 16px; height: 2px; border-radius: 1px; }
+  .chart { position: relative; }
+  .chart svg { display: block; width: 100%; overflow: visible; }
+  .chart .grid line { stroke: var(--grid); stroke-width: 1; }
+  .chart .baseline { stroke: var(--axis); stroke-width: 1; }
+  .chart text { fill: var(--axis-text); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .chart .end-label { fill: var(--text); font-size: 12px; }
+  .chart .series { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .chart .crosshair { stroke: var(--axis); stroke-width: 1; }
+  .chart .dot { stroke: var(--card); stroke-width: 2; }
+  .tooltip {
+    position: absolute;
+    top: 0;
+    pointer-events: none;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.8rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .tooltip .t-month { font-weight: 600; margin-bottom: 4px; }
+  .tooltip .t-row { display: flex; align-items: center; gap: 6px; }
+  .tooltip .t-row b { margin-left: auto; padding-left: 12px; font-weight: 600; }
+  .tooltip .t-note { color: var(--muted); margin-top: 4px; }
+  details.table-view { margin-top: 12px; font-size: 0.85rem; }
+  details.table-view summary { cursor: pointer; color: var(--muted); }
+  details.table-view table { border-collapse: collapse; margin-top: 8px; width: 100%; font-variant-numeric: tabular-nums; }
+  details.table-view th, details.table-view td { padding: 4px 8px; border-bottom: 1px solid var(--border); text-align: right; }
+  details.table-view th:first-child, details.table-view td:first-child { text-align: left; }
+  .insight { margin: 24px 0 0; font-size: 0.95rem; }
+  footer { margin-top: 28px; color: var(--muted); font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>진료비 청구 현황</h1>
+    <p class="sub">kr_claims · claim.csv · 진료개시일 2024-01-01 ~ 2025-12-31</p>
+  </header>
+
+  <section class="kpis">
+    <article class="kpi">
+      <p class="label">총 명세서 수</p>
+      <p class="value">38,375<span class="unit">건</span></p>
+      <p class="note">claim 행 수</p>
+    </article>
+    <article class="kpi">
+      <p class="label">총 진료비</p>
+      <p class="value">3,293,580,300<span class="unit">원</span></p>
+      <p class="note">약 32.9억 원 · rvd_rpe_tamt_amt 합계</p>
+    </article>
+    <article class="kpi">
+      <p class="label">수진자 수</p>
+      <p class="value">2,970<span class="unit">명</span></p>
+      <p class="note">jid 고유 개수</p>
+    </article>
+  </section>
+
+  <section class="panel" aria-labelledby="top-sick-title">
+    <h2 id="top-sick-title">주상병별 명세서 수 상위 10</h2>
+    <p class="sub">main_sick 기준 · 상병명은 sick_master.krnm · 전체 101개 주상병 중 상위 10개</p>
+    <ol class="bars" id="top-sick"></ol>
+  </section>
+
+  <section class="panel" aria-labelledby="by-type-title">
+    <h2 id="by-type-title">종별 건당 평균 진료비</h2>
+    <p class="sub">rvd_rpe_tamt_amt 평균 · claim.yid → institution.cl_cd → code_table(종별코드).code_nm</p>
+    <ol class="bars" id="by-type"></ol>
+  </section>
+
+  <section class="panel" aria-labelledby="trend-title">
+    <h2 id="trend-title">월별 명세서 수 추이</h2>
+    <p class="sub">monthly.csv · recu_fr_dd 월 기준 · 호흡기 질환 = main_sick이 J로 시작</p>
+    <ul class="legend">
+      <li><span class="swatch" style="background: var(--series-1)"></span>전체</li>
+      <li><span class="swatch" style="background: var(--series-2)"></span>호흡기 질환</li>
+    </ul>
+    <div class="chart" id="trend"></div>
+    <details class="table-view">
+      <summary>표로 보기</summary>
+      <table id="trend-table">
+        <thead><tr><th>월</th><th>전체</th><th>호흡기 질환</th><th>호흡기 비율</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </details>
+  </section>
+
+  <p class="insight"><strong>인사이트:</strong> <span id="insight-text"><!-- 여기에 직접 입력 --></span></p>
+
+  <footer>집계 기준: 실습용 합성 데이터 claim.csv 전체 (필터 없음)</footer>
+</main>
+<script>
+  // claim.csv를 main_sick으로 그룹핑한 건수 상위 10 (sick_master.krnm 조인)
+  const TOTAL_CLAIMS = 38375;
+  const topSick = [
+    { code: "J209", name: "상세불명의 급성 기관지염", count: 5285 },
+    { code: "I109", name: "기타 및 상세불명의 원발성 고혈압", count: 4403 },
+    { code: "E119", name: "합병증을 동반하지 않은 2형 당뇨병", count: 1473 },
+    { code: "M545", name: "요통", count: 1294 },
+    { code: "M170", name: "양쪽 원발성 무릎관절증", count: 1176 },
+    { code: "M480", name: "척추협착", count: 1075 },
+    { code: "J304", name: "상세불명의 알레르기비염", count: 1054 },
+    { code: "J00", name: "급성 비인두염[감기]", count: 974 },
+    { code: "J029", name: "상세불명의 급성 인두염", count: 879 },
+    { code: "E785", name: "상세불명의 고지질혈증", count: 782 },
+  ];
+
+  // claim.yid → institution.cl_cd로 종별을 붙여 rvd_rpe_tamt_amt 평균 (종별 코드 순)
+  const byType = [
+    { code: "01", name: "상급종합병원", claims: 2050, total: 1024094100 },
+    { code: "11", name: "종합병원", claims: 3255, total: 853384800 },
+    { code: "21", name: "병원", claims: 2742, total: 323710600 },
+    { code: "31", name: "의원", claims: 30328, total: 1092390800 },
+  ].map(d => ({ ...d, avg: Math.round(d.total / d.claims) }));
+
+  const fmt = n => n.toLocaleString("ko-KR");
+
+  function renderBars(id, rows, value, valueText, tooltip) {
+    const max = Math.max(...rows.map(value));
+    const list = document.getElementById(id);
+    for (const d of rows) {
+      const li = document.createElement("li");
+      li.className = "bar-row";
+      li.title = tooltip(d);
+      li.innerHTML = `
+        <span class="bar-label"><span class="name">${d.name}</span><span class="code">${d.code}</span></span>
+        <span class="bar-track">
+          <span class="bar" style="width: calc((100% - 6.5rem) * ${value(d) / max})"></span>
+          <span class="bar-value">${valueText(d)}</span>
+        </span>`;
+      list.appendChild(li);
+    }
+  }
+
+  renderBars("top-sick", topSick, d => d.count, d => `${fmt(d.count)}건`,
+    d => `${d.code} ${d.name}\n명세서 ${fmt(d.count)}건 (전체의 ${(d.count / TOTAL_CLAIMS * 100).toFixed(1)}%)`);
+
+  renderBars("by-type", byType, d => d.avg, d => `${fmt(d.avg)}원`,
+    d => `${d.name} (종별코드 ${d.code})\n건당 평균 ${fmt(d.avg)}원\n명세서 ${fmt(d.claims)}건 · 총 ${fmt(d.total)}원`);
+
+  // monthly.csv (month, claim_cnt, resp_claim_cnt)
+  const monthly = `2024-01,1293,532
+2024-02,1733,741
+2024-03,1865,798
+2024-04,1710,641
+2024-05,1513,452
+2024-06,1357,342
+2024-07,1379,300
+2024-08,1550,371
+2024-09,1370,336
+2024-10,1633,488
+2024-11,1745,733
+2024-12,1798,763
+2025-01,1746,719
+2025-02,1627,762
+2025-03,1825,809
+2025-04,1658,622
+2025-05,1557,452
+2025-06,1431,379
+2025-07,1487,351
+2025-08,1425,341
+2025-09,1391,315
+2025-10,1601,474
+2025-11,1765,725
+2025-12,1916,839`.split("\n").map(line => {
+    const [month, total, resp] = line.split(",");
+    return { month, total: +total, resp: +resp };
+  });
+
+  const seriesDefs = [
+    { key: "total", name: "전체", color: "var(--series-1)" },
+    { key: "resp", name: "호흡기 질환", color: "var(--series-2)" },
+  ];
+
+  document.querySelector("#trend-table tbody").innerHTML = monthly.map(d =>
+    `<tr><td>${d.month}</td><td>${fmt(d.total)}</td><td>${fmt(d.resp)}</td><td>${(d.resp / d.total * 100).toFixed(1)}%</td></tr>`
+  ).join("");
+
+  function renderTrend() {
+    const host = document.getElementById("trend");
+    const W = host.clientWidth, H = 260;
+    const m = { top: 12, right: 96, bottom: 28, left: 44 };
+    const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
+    const yMax = 2000;
+    const x = i => m.left + (i / (monthly.length - 1)) * iw;
+    const y = v => m.top + ih - (v / yMax) * ih;
+    const ns = "http://www.w3.org/2000/svg";
+
+    const ticks = [0, 500, 1000, 1500, 2000];
+    const grid = ticks.map(t =>
+      `<line x1="${m.left}" x2="${m.left + iw}" y1="${y(t)}" y2="${y(t)}"/>` +
+      `<text x="${m.left - 8}" y="${y(t) + 4}" text-anchor="end">${fmt(t)}</text>`).join("");
+    const xLabels = monthly.map((d, i) => {
+      if (i % 3 !== 0) return "";
+      const [yy, mm] = d.month.split("-");
+      const label = mm === "01" ? `${yy}.01` : `${+mm}월`;
+      return `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${label}</text>`;
+    }).join("");
+    const paths = seriesDefs.map(s =>
+      `<path class="series" stroke="${s.color}" d="${monthly.map((d, i) => `${i ? "L" : "M"}${x(i)},${y(d[s.key])}`).join("")}"/>`).join("");
+    const last = monthly.length - 1;
+    const endLabels = seriesDefs.map(s =>
+      `<text class="end-label" x="${x(last) + 8}" y="${y(monthly[last][s.key]) + 4}">${s.name} ${fmt(monthly[last][s.key])}</text>`).join("");
+
+    host.innerHTML = `
+      <svg height="${H}" role="img" aria-label="월별 전체 명세서 수와 호흡기 질환 명세서 수 꺾은선 그래프, 2024년 1월부터 2025년 12월까지">
+        <g class="grid">${grid}</g>
+        <line class="baseline" x1="${m.left}" x2="${m.left + iw}" y1="${y(0)}" y2="${y(0)}"/>
+        ${xLabels}${paths}${endLabels}
+        <g class="hover" visibility="hidden">
+          <line class="crosshair" y1="${m.top}" y2="${m.top + ih}"/>
+          ${seriesDefs.map(s => `<circle class="dot" r="4.5" fill="${s.color}" data-key="${s.key}"/>`).join("")}
+        </g>
+        <rect x="${m.left}" y="${m.top}" width="${iw}" height="${ih}" fill="transparent" class="hit"/>
+      </svg>
+      <div class="tooltip" hidden></div>`;
+
+    const svg = host.querySelector("svg");
+    const hover = svg.querySelector(".hover");
+    const tip = host.querySelector(".tooltip");
+    svg.querySelector(".hit").addEventListener("pointermove", e => {
+      const px = e.clientX - svg.getBoundingClientRect().left;
+      const i = Math.max(0, Math.min(last, Math.round((px - m.left) / iw * last)));
+      const d = monthly[i];
+      hover.setAttribute("visibility", "visible");
+      hover.querySelector(".crosshair").setAttribute("x1", x(i));
+      hover.querySelector(".crosshair").setAttribute("x2", x(i));
+      hover.querySelectorAll(".dot").forEach(c => {
+        c.setAttribute("cx", x(i));
+        c.setAttribute("cy", y(d[c.dataset.key]));
+      });
+      tip.innerHTML = `<div class="t-month">${d.month}</div>` +
+        seriesDefs.map(s => `<div class="t-row"><span class="swatch" style="width:10px;height:2px;background:${s.color}"></span>${s.name}<b>${fmt(d[s.key])}건</b></div>`).join("") +
+        `<div class="t-note">호흡기 비율 ${(d.resp / d.total * 100).toFixed(1)}%</div>`;
+      tip.hidden = false;
+      const tw = tip.offsetWidth;
+      tip.style.left = `${x(i) + 12 + tw > W ? x(i) - 12 - tw : x(i) + 12}px`;
+    });
+    svg.querySelector(".hit").addEventListener("pointerleave", () => {
+      hover.setAttribute("visibility", "hidden");
+      tip.hidden = true;
+    });
+  }
+
+  renderTrend();
+  new ResizeObserver(renderTrend).observe(document.getElementById("trend"));
+</script>
+</body>
+</html>
