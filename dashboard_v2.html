@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>의료이용 정책 지표</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #1a1d23;
+    --muted: #5f6672;
+    --border: #e3e6eb;
+    --accent: #2f6fde;
+    --track: #e8ebf0;
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --axis-text: #898781;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --card: #1e2127;
+      --text: #eceef2;
+      --muted: #9aa1ad;
+      --border: #2e333b;
+      --accent: #6c9cf0;
+      --track: #2a2e35;
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --series-3: #199e70;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --axis-text: #898781;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 1040px; margin: 0 auto; padding: 40px 16px; }
+  header { margin-bottom: 28px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 0.9rem; margin: 0; }
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .kpi {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+  }
+  .kpi .axis { color: var(--accent); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em; margin: 0 0 2px; }
+  .kpi .label { font-size: 0.95rem; font-weight: 600; margin: 0 0 10px; }
+  .kpi .value {
+    font-size: clamp(1.75rem, 3.6vw, 2.25rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    margin: 0;
+  }
+  .kpi .value .unit { font-size: 1rem; font-weight: 500; color: var(--muted); margin-left: 2px; }
+  .kpi .formula { color: var(--muted); font-size: 0.8rem; margin: 4px 0 14px; }
+  .breakdown { list-style: none; margin: 0; padding: 12px 0 0; border-top: 1px solid var(--border); font-size: 0.85rem; }
+  .breakdown li {
+    display: grid;
+    grid-template-columns: 6.5rem 1fr 4.5rem;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+  }
+  .breakdown .k { color: var(--muted); }
+  .breakdown .meter { height: 6px; background: var(--track); border-radius: 3px; overflow: hidden; }
+  .breakdown .meter span { display: block; height: 100%; background: var(--accent); border-radius: 0 3px 3px 0; }
+  .breakdown .v { text-align: right; font-variant-numeric: tabular-nums; }
+  .kpi .caveat {
+    margin: 14px 0 0;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+  .panel {
+    margin-top: 24px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .panel h2 { font-size: 1.05rem; margin: 0 0 2px; }
+  .panel .kpi-link { color: var(--accent); font-size: 0.75rem; font-weight: 600; margin: 0 0 2px; }
+  .panel .sub { margin-bottom: 12px; }
+  .panel .takeaway { margin: 12px 0 0; font-size: 0.875rem; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0 0 8px; padding: 0; list-style: none; font-size: 0.85rem; color: var(--muted); }
+  .legend li { display: flex; align-items: center; gap: 6px; }
+  .legend .swatch { width: 12px; height: 12px; border-radius: 3px; }
+  .chart { position: relative; }
+  .chart svg { display: block; width: 100%; overflow: visible; }
+  .chart .grid line { stroke: var(--grid); stroke-width: 1; }
+  .chart .baseline { stroke: var(--axis); stroke-width: 1; }
+  .chart text { fill: var(--axis-text); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .chart text.cat { fill: var(--muted); font-size: 12px; }
+  .chart text.val { fill: var(--text); font-size: 11px; }
+  .chart .crosshair { stroke: var(--axis); stroke-width: 1; }
+  .chart .area-edge { fill: none; stroke: var(--card); stroke-width: 2; }
+  .chart .bar-hit { fill: transparent; }
+  .tooltip {
+    position: absolute;
+    top: 0;
+    pointer-events: none;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.8rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    z-index: 1;
+  }
+  .tooltip .t-head { font-weight: 600; margin-bottom: 4px; }
+  .tooltip .t-row { display: flex; align-items: center; gap: 6px; }
+  .tooltip .t-row b { margin-left: auto; padding-left: 12px; font-weight: 600; }
+  .tooltip .t-note { color: var(--muted); margin-top: 4px; }
+  .tooltip .sw { width: 10px; height: 10px; border-radius: 2px; }
+  .multiples { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+  .multiples h3 { font-size: 0.85rem; margin: 0 0 8px; font-weight: 600; }
+  .multiples .breakdown { border-top: none; padding-top: 0; }
+  .multiples .breakdown li { grid-template-columns: 5rem 1fr 5rem; padding: 4px 0; }
+  .multiples .breakdown .meter { height: 14px; border-radius: 0 4px 4px 0; background: transparent; }
+  .multiples .breakdown .meter span { border-radius: 0 4px 4px 0; }
+  details.table-view { margin-top: 12px; font-size: 0.85rem; }
+  details.table-view summary { cursor: pointer; color: var(--muted); }
+  details.table-view table { border-collapse: collapse; margin-top: 8px; width: 100%; font-variant-numeric: tabular-nums; }
+  details.table-view th, details.table-view td { padding: 4px 8px; border-bottom: 1px solid var(--border); text-align: right; }
+  details.table-view th:first-child, details.table-view td:first-child { text-align: left; }
+  .notes {
+    margin-top: 24px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-size: 0.85rem;
+  }
+  .notes h2 { font-size: 0.95rem; margin: 0 0 8px; }
+  .notes ul { margin: 0; padding-left: 1.1rem; }
+  .notes li { margin: 4px 0; }
+  .notes code { font-size: 0.8rem; }
+  footer { margin-top: 28px; color: var(--muted); font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>의료이용 정책 지표</h1>
+    <p class="sub">대상: 보건정책 연구자 · kr_claims 명세서 38,375건 · 진료개시일 2024-01-01 ~ 2025-12-31</p>
+  </header>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="panel" aria-labelledby="oop-title">
+    <p class="kpi-link">KPI ① 보장성</p>
+    <h2 id="oop-title">종별 × 입원/외래 본인부담률</h2>
+    <p class="sub">본인부담금 합계 ÷ 진료비 총액 합계 · 의원은 입원 명세서 없음</p>
+    <ul class="legend">
+      <li><span class="swatch" style="background: var(--series-1)"></span>입원</li>
+      <li><span class="swatch" style="background: var(--series-2)"></span>외래</li>
+    </ul>
+    <div class="chart" id="oop-chart"></div>
+    <p class="takeaway">입원은 18~19%, 외래는 27~28%로 <b>입원/외래 차이는 뚜렷하지만 종별 차이는 거의 없습니다.</b> 상급종합병원 외래와 의원 외래의 차이는 0.5%p에 불과합니다.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="mild-title">
+    <p class="kpi-link">KPI ② 의료전달체계</p>
+    <h2 id="mild-title">경증 외래 중 병원급 이상 이용 비중 · 월별</h2>
+    <p class="sub">경증 외래 명세서 중 각 종별 비중 (누적) · 나머지는 의원 (월 79~87%)</p>
+    <ul class="legend">
+      <li><span class="swatch" style="background: var(--series-1)"></span>상급종합병원</li>
+      <li><span class="swatch" style="background: var(--series-2)"></span>종합병원</li>
+      <li><span class="swatch" style="background: var(--series-3)"></span>병원</li>
+    </ul>
+    <div class="chart" id="mild-chart"></div>
+    <p class="takeaway">병원급 이상 비중은 월 12.5%(2024-01)~20.8%(2024-11) 사이에서 움직이며, 2년 동안 뚜렷한 증가나 감소 추세는 없습니다. 상급종합병원 비중은 3.2%(2025-09)~5.5%(2024-12) 범위입니다.</p>
+    <details class="table-view">
+      <summary>표로 보기</summary>
+      <table id="mild-table">
+        <thead><tr><th>월</th><th>경증 외래</th><th>상급종합</th><th>종합</th><th>병원</th><th>의원</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </details>
+  </section>
+
+  <section class="panel" aria-labelledby="region-title">
+    <p class="kpi-link">KPI ③ 지역 형평성</p>
+    <h2 id="region-title">권역별 1인당 진료비 분해</h2>
+    <p class="sub">1인당 진료비 = 1인당 명세서 수 × 건당 진료비 · 권역은 의료기관 소재지 기준</p>
+    <div class="multiples" id="region-multiples"></div>
+    <p class="takeaway">호남제주권·영남권의 1인당 진료비가 높은 이유는 <b>병원을 더 자주 가서가 아니라(1인당 명세서 수 차이 최대 6.5%), 한 번 진료가 더 비싸서입니다(건당 진료비 최대 31% 차이).</b> 특히 호남제주권·영남권 상급종합병원의 건당 진료비가 수도권·강원충청권의 1.5~2배입니다.</p>
+  </section>
+
+  <section class="notes">
+    <h2>지표 정의와 해석 시 유의점</h2>
+    <ul>
+      <li><b>경증 상병(실습용 정의):</b> 주상병 3단 코드가 다음 21개 중 하나인 외래 명세서 —
+        <code>J00 J01 J02 J03 J04 J06 J20 J30 J32 J40 I10 E11 E78 K21 K29 A09 H10 L23 M54 N30 B35</code>.
+        공식 '52개 경증질환' 목록이 아니며, 데이터에 있는 다빈도 경증 상병으로 구성했습니다.</li>
+      <li><b>권역:</b> <code>institution.region_cd</code>는 의료기관 소재 권역입니다. 권역명은 sido_code.csv의 region_nm을 따릅니다(1 수도권 · 2 강원충청권 · 3 호남제주권 · 4 영남권).
+        이 데이터에서는 수진자 2,970명이 모두 한 권역의 기관만 이용해, 권역별 수진자 수의 합이 전체와 같습니다.</li>
+      <li><b>본인부담률:</b> 본인부담금 + 보험자부담금 = 진료비 총액으로 정확히 맞습니다(비급여 미포함).</li>
+    </ul>
+  </section>
+
+  <footer>집계 기준: 실습용 합성 데이터 claim.csv + institution.csv 전체 (필터 없음)</footer>
+</main>
+<script>
+  // claim.csv + institution.csv 집계값
+  const kpis = [
+    {
+      axis: "보장성",
+      label: "본인부담률",
+      value: "22.8", unit: "%",
+      formula: "본인부담금 752,149,500원 ÷ 진료비 총액 3,293,580,300원",
+      max: 30, fmtV: v => v.toFixed(1) + "%",
+      rows: [
+        ["입원 전체", 18.55], ["외래 전체", 27.30],
+        ["상급종합 외래", 27.66], ["종합 외래", 27.40], ["병원 외래", 27.41], ["의원 외래", 27.21],
+      ],
+      caveat: "상급종합병원 외래(27.7%)와 의원 외래(27.2%)의 본인부담률이 거의 같습니다. 실제 제도의 종별 차등 본인부담이 이 합성 데이터에는 반영되지 않은 것으로 보입니다.",
+    },
+    {
+      axis: "의료전달체계",
+      label: "경증 외래의 상급종합병원 이용 비율",
+      value: "4.45", unit: "%",
+      formula: "경증 외래 26,388건 중 상급종합병원 1,175건",
+      max: 100, fmtV: v => v.toFixed(1) + "%",
+      rows: [
+        ["상급종합병원", 4.45], ["종합병원", 6.98], ["병원", 6.32], ["의원", 82.24],
+      ],
+      caveat: "연도별로는 2024년 4.44% → 2025년 4.46%로 거의 변화가 없습니다. 경증 외래의 약 18%가 의원이 아닌 병원급 이상에서 진료받았습니다.",
+    },
+    {
+      axis: "지역 형평성",
+      label: "권역별 수진자 1인당 진료비 격차",
+      value: "1.35", unit: "배",
+      formula: "최고 영남권 ÷ 최저 수도권 · 전체 평균 1,108,950원",
+      max: 1400000, fmtV: v => (v / 10000).toFixed(1) + "만원",
+      rows: [
+        ["수도권", 995196], ["강원충청권", 998655],
+        ["호남제주권", 1278962], ["영남권", 1343584],
+      ],
+      caveat: "권역은 의료기관 소재지 기준입니다. 환자 거주지가 아니므로 '그 지역 기관의 진료 강도'로 해석해야 합니다.",
+    },
+  ];
+
+  document.getElementById("kpis").innerHTML = kpis.map(k => `
+    <article class="kpi">
+      <p class="axis">${k.axis}</p>
+      <p class="label">${k.label}</p>
+      <p class="value">${k.value}<span class="unit">${k.unit}</span></p>
+      <p class="formula">${k.formula}</p>
+      <ul class="breakdown">
+        ${k.rows.map(([name, v]) => `
+          <li><span class="k">${name}</span>
+            <span class="meter"><span style="width:${(v / k.max * 100).toFixed(1)}%"></span></span>
+            <span class="v">${k.fmtV(v)}</span></li>`).join("")}
+      </ul>
+      <p class="caveat">${k.caveat}</p>
+    </article>`).join("");
+
+  const fmt = n => n.toLocaleString("ko-KR");
+  const pct = v => v.toFixed(1) + "%";
+
+  function showTip(host, tip, html, anchorX, W) {
+    tip.innerHTML = html;
+    tip.hidden = false;
+    const tw = tip.offsetWidth;
+    tip.style.left = `${anchorX + 12 + tw > W ? Math.max(0, anchorX - 12 - tw) : anchorX + 12}px`;
+  }
+
+  // 그래프 1: 종별 × 입원/외래 본인부담률 (claim + institution 집계)
+  const oop = [
+    { name: "상급종합병원", 입원: { n: 258, amt: 821251900, slf: 147060800 }, 외래: { n: 1792, amt: 202842200, slf: 56107500 } },
+    { name: "종합병원", 입원: { n: 288, amt: 658485600, slf: 125549800 }, 외래: { n: 2967, amt: 194899200, slf: 53401500 } },
+    { name: "병원", 입원: { n: 78, amt: 200644900, slf: 39098200 }, 외래: { n: 2664, amt: 123065700, slf: 33730400 } },
+    { name: "의원", 입원: null, 외래: { n: 30328, amt: 1092390800, slf: 297201300 } },
+  ];
+  const oopSeries = [{ key: "입원", color: "var(--series-1)" }, { key: "외래", color: "var(--series-2)" }];
+
+  function topRoundedBar(x, y, w, h, r) {
+    r = Math.min(r, h, w / 2);
+    return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+  }
+
+  function renderOop() {
+    const host = document.getElementById("oop-chart");
+    const W = host.clientWidth, H = 240;
+    const m = { top: 20, right: 8, bottom: 28, left: 40 };
+    const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
+    const yMax = 30;
+    const y = v => m.top + ih - (v / yMax) * ih;
+    const band = iw / oop.length;
+    const bw = Math.min(40, band * 0.3);
+
+    let grid = "", bars = "", labels = "";
+    for (const t of [0, 10, 20, 30]) {
+      grid += `<line x1="${m.left}" x2="${m.left + iw}" y1="${y(t)}" y2="${y(t)}"/>` +
+        `<text x="${m.left - 8}" y="${y(t) + 4}" text-anchor="end">${t}%</text>`;
+    }
+    oop.forEach((g, gi) => {
+      const cx = m.left + band * (gi + 0.5);
+      labels += `<text class="cat" x="${cx}" y="${H - 8}" text-anchor="middle">${g.name}</text>`;
+      oopSeries.forEach((s, si) => {
+        const x = si === 0 ? cx - bw - 1 : cx + 1;
+        const d = g[s.key];
+        if (!d) {
+          labels += `<text x="${x + bw / 2}" y="${y(0) - 6}" text-anchor="middle">없음</text>`;
+          return;
+        }
+        const rate = d.slf / d.amt * 100;
+        bars += `<path d="${topRoundedBar(x, y(rate), bw, y(0) - y(rate), 4)}" fill="${s.color}"/>` +
+          `<text class="val" x="${x + bw / 2}" y="${y(rate) - 5}" text-anchor="middle">${rate.toFixed(1)}</text>` +
+          `<rect class="bar-hit" x="${x - 1}" y="${m.top}" width="${bw + 2}" height="${ih}" data-g="${gi}" data-s="${si}"/>`;
+      });
+    });
+
+    host.innerHTML = `
+      <svg height="${H}" role="img" aria-label="종별 입원과 외래 본인부담률 묶은 막대 그래프">
+        <g class="grid">${grid}</g>
+        <line class="baseline" x1="${m.left}" x2="${m.left + iw}" y1="${y(0)}" y2="${y(0)}"/>
+        ${bars}${labels}
+      </svg>
+      <div class="tooltip" hidden></div>`;
+
+    const tip = host.querySelector(".tooltip");
+    host.querySelectorAll(".bar-hit").forEach(el => {
+      el.addEventListener("pointerenter", () => {
+        const g = oop[+el.dataset.g], s = oopSeries[+el.dataset.s], d = g[s.key];
+        showTip(host, tip,
+          `<div class="t-head">${g.name} · ${s.key}</div>` +
+          `<div class="t-row"><span class="sw" style="background:${s.color}"></span>본인부담률<b>${pct(d.slf / d.amt * 100)}</b></div>` +
+          `<div class="t-note">명세서 ${fmt(d.n)}건 · 총액 ${fmt(d.amt)}원<br>본인부담금 ${fmt(d.slf)}원</div>`,
+          +el.getAttribute("x") + bw, W);
+      });
+      el.addEventListener("pointerleave", () => { tip.hidden = true; });
+    });
+  }
+
+  // 그래프 2: 경증 외래 명세서의 종별 구성 월별 (month, 전체, 상급종합, 종합, 병원, 의원)
+  const mild = `2024-01,960,31,55,35,839
+2024-02,1256,55,94,71,1036
+2024-03,1333,59,102,84,1088
+2024-04,1173,45,83,77,968
+2024-05,957,47,69,73,768
+2024-06,915,50,53,53,759
+2024-07,860,37,47,60,716
+2024-08,1018,44,65,66,843
+2024-09,839,28,52,54,705
+2024-10,1054,46,62,62,884
+2024-11,1251,59,95,106,991
+2024-12,1353,75,113,90,1075
+2025-01,1271,63,92,89,1027
+2025-02,1224,56,102,79,987
+2025-03,1309,69,88,102,1050
+2025-04,1187,53,85,72,977
+2025-05,1061,44,75,51,891
+2025-06,930,42,70,57,761
+2025-07,950,43,58,64,785
+2025-08,924,32,62,42,788
+2025-09,856,27,48,53,728
+2025-10,1049,38,67,60,884
+2025-11,1254,62,108,76,1008
+2025-12,1404,70,98,93,1143`.split("\n").map(line => {
+    const [month, n, t1, t2, t3, t4] = line.split(",");
+    return { month, n: +n, counts: [+t1, +t2, +t3], clinic: +t4 };
+  });
+  const mildSeries = [
+    { name: "상급종합병원", color: "var(--series-1)" },
+    { name: "종합병원", color: "var(--series-2)" },
+    { name: "병원", color: "var(--series-3)" },
+  ];
+
+  document.querySelector("#mild-table tbody").innerHTML = mild.map(d =>
+    `<tr><td>${d.month}</td><td>${fmt(d.n)}</td>${d.counts.map(c => `<td>${pct(c / d.n * 100)}</td>`).join("")}<td>${pct(d.clinic / d.n * 100)}</td></tr>`
+  ).join("");
+
+  function renderMild() {
+    const host = document.getElementById("mild-chart");
+    const W = host.clientWidth, H = 260;
+    const m = { top: 12, right: 12, bottom: 28, left: 40 };
+    const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
+    const yMax = 25, last = mild.length - 1;
+    const x = i => m.left + (i / last) * iw;
+    const y = v => m.top + ih - (v / yMax) * ih;
+
+    // 누적 비중 (아래부터 상급종합 → 종합 → 병원)
+    const stacks = mild.map(d => {
+      let acc = 0;
+      return d.counts.map(c => { const lo = acc; acc += c / d.n * 100; return [lo, acc]; });
+    });
+
+    let grid = "";
+    for (const t of [0, 5, 10, 15, 20, 25]) {
+      grid += `<line x1="${m.left}" x2="${m.left + iw}" y1="${y(t)}" y2="${y(t)}"/>` +
+        `<text x="${m.left - 8}" y="${y(t) + 4}" text-anchor="end">${t}%</text>`;
+    }
+    const xLabels = mild.map((d, i) => {
+      if (i % 3 !== 0) return "";
+      const [yy, mm] = d.month.split("-");
+      return `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${mm === "01" ? `${yy}.01` : `${+mm}월`}</text>`;
+    }).join("");
+    const areas = mildSeries.map((s, si) => {
+      const top = stacks.map((st, i) => `${x(i)},${y(st[si][1])}`);
+      const bottom = stacks.map((st, i) => `${x(i)},${y(st[si][0])}`).reverse();
+      return `<path d="M${top.join("L")}L${bottom.join("L")}Z" fill="${s.color}"/>` +
+        `<path class="area-edge" d="M${top.join("L")}"/>`;
+    }).join("");
+
+    host.innerHTML = `
+      <svg height="${H}" role="img" aria-label="경증 외래 명세서 중 상급종합병원, 종합병원, 병원 비중 누적 영역 그래프, 2024년 1월부터 2025년 12월까지">
+        <g class="grid">${grid}</g>
+        ${areas}
+        <line class="baseline" x1="${m.left}" x2="${m.left + iw}" y1="${y(0)}" y2="${y(0)}"/>
+        ${xLabels}
+        <line class="crosshair" y1="${m.top}" y2="${m.top + ih}" visibility="hidden"/>
+        <rect x="${m.left}" y="${m.top}" width="${iw}" height="${ih}" fill="transparent" class="hit"/>
+      </svg>
+      <div class="tooltip" hidden></div>`;
+
+    const svg = host.querySelector("svg"), tip = host.querySelector(".tooltip");
+    const cross = svg.querySelector(".crosshair"), hit = svg.querySelector(".hit");
+    hit.addEventListener("pointermove", e => {
+      const px = e.clientX - svg.getBoundingClientRect().left;
+      const i = Math.max(0, Math.min(last, Math.round((px - m.left) / iw * last)));
+      const d = mild[i];
+      cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i));
+      cross.setAttribute("visibility", "visible");
+      const sum = d.counts.reduce((a, b) => a + b, 0);
+      showTip(host, tip,
+        `<div class="t-head">${d.month} · 경증 외래 ${fmt(d.n)}건</div>` +
+        mildSeries.map((s, si) => `<div class="t-row"><span class="sw" style="background:${s.color}"></span>${s.name}<b>${pct(d.counts[si] / d.n * 100)}</b></div>`).reverse().join("") +
+        `<div class="t-note">병원급 이상 합계 ${pct(sum / d.n * 100)} · 의원 ${pct(d.clinic / d.n * 100)}</div>`,
+        x(i), W);
+    });
+    hit.addEventListener("pointerleave", () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); });
+  }
+
+  // 그래프 3: 권역별 1인당 진료비 분해 (claims, 수진자, 총액, 상급종합 명세서·총액)
+  const regions = [
+    { r: 1, name: "수도권", claims: 19593, pts: 1538, amt: 1530611600, tClaims: 1041, tAmt: 405730900 },
+    { r: 2, name: "강원충청권", claims: 5153, pts: 406, amt: 405454000, tClaims: 275, tAmt: 104977300 },
+    { r: 3, name: "호남제주권", claims: 4393, pts: 325, amt: 415662600, tClaims: 240, tAmt: 141043300 },
+    { r: 4, name: "영남권", claims: 9236, pts: 701, amt: 941852100, tClaims: 494, tAmt: 372342600 },
+  ];
+  const panels = [
+    { title: "1인당 진료비", v: d => d.amt / d.pts, f: v => `${(v / 10000).toFixed(1)}만원` },
+    { title: "= 1인당 명세서 수", v: d => d.claims / d.pts, f: v => `${v.toFixed(1)}건` },
+    { title: "× 건당 진료비", v: d => d.amt / d.claims, f: v => `${fmt(Math.round(v))}원` },
+    { title: "참고: 상급종합병원 건당 진료비", v: d => d.tAmt / d.tClaims, f: v => `${(v / 10000).toFixed(1)}만원` },
+  ];
+  document.getElementById("region-multiples").innerHTML = panels.map(p => {
+    const max = Math.max(...regions.map(p.v));
+    return `<div><h3>${p.title}</h3><ul class="breakdown">${regions.map(d => `
+      <li title="${d.name}(권역 ${d.r}) · 수진자 ${fmt(d.pts)}명 · 명세서 ${fmt(d.claims)}건 · 총액 ${fmt(d.amt)}원">
+        <span class="k">${d.name}</span>
+        <span class="meter"><span style="width:${(p.v(d) / max * 100).toFixed(1)}%"></span></span>
+        <span class="v">${p.f(p.v(d))}</span></li>`).join("")}</ul></div>`;
+  }).join("");
+
+  for (const [id, render] of [["oop-chart", renderOop], ["mild-chart", renderMild]]) {
+    render();
+    new ResizeObserver(render).observe(document.getElementById(id));
+  }
+</script>
+</body>
+</html>
