@@ -147,6 +147,26 @@
   details.table-view table { border-collapse: collapse; margin-top: 8px; width: 100%; font-variant-numeric: tabular-nums; }
   details.table-view th, details.table-view td { padding: 4px 8px; border-bottom: 1px solid var(--border); text-align: right; }
   details.table-view th:first-child, details.table-view td:first-child { text-align: left; }
+  .insights {
+    margin-top: 24px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .insights h2 { font-size: 1.05rem; margin: 0 0 12px; }
+  .insights ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 14px; }
+  .insights li { display: grid; grid-template-columns: 1.75rem 1fr; gap: 4px 10px; }
+  .insights .num {
+    width: 1.75rem; height: 1.75rem; border-radius: 50%;
+    background: var(--accent); color: var(--card);
+    display: grid; place-items: center; font-size: 0.85rem; font-weight: 700;
+  }
+  .insights .head { font-weight: 600; margin: 2px 0 2px; }
+  .insights .tag { color: var(--accent); font-size: 0.75rem; font-weight: 600; margin-right: 6px; }
+  .insights .body { grid-column: 2; margin: 0; font-size: 0.875rem; color: var(--muted); }
+  .insights .next { grid-column: 2; margin: 0; font-size: 0.85rem; }
   .notes {
     margin-top: 24px;
     background: var(--card);
@@ -209,6 +229,30 @@
     <p class="sub">1인당 진료비 = 1인당 명세서 수 × 건당 진료비 · 권역은 의료기관 소재지 기준</p>
     <div class="multiples" id="region-multiples"></div>
     <p class="takeaway">호남제주권·영남권의 1인당 진료비가 높은 이유는 <b>병원을 더 자주 가서가 아니라(1인당 명세서 수 차이 최대 6.5%), 한 번 진료가 더 비싸서입니다(건당 진료비 최대 31% 차이).</b> 특히 호남제주권·영남권 상급종합병원의 건당 진료비가 수도권·강원충청권의 1.5~2배입니다.</p>
+  </section>
+
+  <section class="insights" aria-labelledby="insights-title">
+    <h2 id="insights-title">핵심 인사이트</h2>
+    <ol>
+      <li>
+        <span class="num">1</span>
+        <p class="head"><span class="tag">보장성</span>종별 본인부담 차등이 데이터에 보이지 않는다</p>
+        <p class="body">상급종합병원 외래 27.7%와 의원 외래 27.2%의 차이는 0.5%p뿐입니다. 반면 입원(18.6%)과 외래(27.3%)의 차이는 약 9%p로 뚜렷합니다.</p>
+        <p class="next">→ 큰 병원 외래의 본인부담을 높여 경증 환자의 쏠림을 막는 장치가 이 데이터에는 반영되어 있지 않습니다. 쏠림 분석 결과를 읽을 때 이 점을 감안해야 합니다.</p>
+      </li>
+      <li>
+        <span class="num">2</span>
+        <p class="head"><span class="tag">의료전달체계</span>큰 병원 쏠림은 늘지도 줄지도 않고 일정하다</p>
+        <p class="body">경증 외래의 약 18%가 의원이 아닌 병원급 이상에서 진료받습니다. 상급종합병원 비율은 2024년 4.44%, 2025년 4.46%로 같고, 월별로도 12.5~20.8% 사이에서 오르내릴 뿐 추세가 없습니다.</p>
+        <p class="next">→ 정책 변화의 효과를 보려면, 이 수준을 기준선 삼아 제도 시행 전후를 비교할 필요가 있습니다.</p>
+      </li>
+      <li>
+        <span class="num">3</span>
+        <p class="head"><span class="tag">지역 형평성</span>지역 격차는 이용 횟수가 아니라 진료 단가에서 나온다</p>
+        <p class="body">호남제주권·영남권의 1인당 진료비는 수도권보다 28~35% 높습니다. 그러나 1인당 명세서 수 차이는 최대 6.5%이고, 건당 진료비 차이가 최대 31%입니다. 특히 두 권역 상급종합병원의 건당 진료비(58.8만~75.4만 원)는 수도권·강원충청권(38만~39만 원)의 1.5~2배입니다.</p>
+        <p class="next">→ 비수도권 상급종합병원에 중증·입원 환자가 몰리는지 확인하기 위해, 상병 구성과 입원 비중을 권역별로 비교해 볼 만합니다.</p>
+      </li>
+    </ol>
   </section>
 
   <section class="notes">
